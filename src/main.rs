@@ -4,11 +4,35 @@ extern crate glium;
 use glium::glutin;
 use glium::Surface;
 
+#[derive(Copy, Clone)]
+struct Vertex {
+    posititon: [f32; 2],
+};
+
+impl Vertex {
+    pub fn new(x_pos: f32, y_pos: f32) -> Self {
+        Vertex {
+            position: [x_pos, y_pos],
+        }
+    }
+}
+
 fn main() {
     let mut event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new();
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
+
+    implement_vertex!(Vertex, position);
+
+    let vertex1 = Vertex::new(-0.5, -0.5);
+    let vertex2 = Vertex::new(0.0, 0.5);
+    let vertex3 = Vertex::new(0.5, -0.25);
+
+    let shape = vec![vertex1, vertex2, vertex3];
+
+    let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
+    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 
     event_loop.run(move |event, _, control_flow| {
 
