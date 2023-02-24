@@ -4,6 +4,7 @@ extern crate glium;
 use glium::glutin;
 use glium::Surface;
 use glium::implement_vertex;
+use glium::uniform;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -26,6 +27,7 @@ fn main() {
 
     implement_vertex!(Vertex, position);
 
+
     let vertex1 = Vertex::new(-0.5, -0.5);
     let vertex2 = Vertex::new(0.0, 0.5);
     let vertex3 = Vertex::new(0.5, -0.25);
@@ -40,8 +42,10 @@ fn main() {
 
         in vec2 position;
 
+        uniform mat4 matrix;
+
         void main() {
-            gl_Position = vec4(position, 0.0, 1.0);
+            gl_Position = matrix * vec4(position, 0.0, 1.0);
         }
     "#;
 
@@ -57,12 +61,9 @@ fn main() {
 
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
 
-    event_loop.run(move |event, _, control_flow| {
+    let mut t: f32 = -0.5;
 
-        let mut target = display.draw();
-        target.clear_color(0.5, 0.8, 1.0, 1.0);
-        target.draw(&vertex_buffer, &indices, &program, &glium::uniforms::EmptyUniforms, &Default::default()).unwrap();
-        target.finish().unwrap();
+    event_loop.run(move |event, _, control_flow| {
 
         let next_frame_time = std::time::Instant::now() + 
             std::time::Duration::from_nanos(16_666_667);
@@ -77,6 +78,27 @@ fn main() {
             }, 
             _ => (),
         }
+
+        t += 0.002;
+        if t > 0.5 {
+            t = -0.5;
+        }
+
+        let mut target = display.draw();
+        target.clear_color(0.5, 0.8, 1.0, 1.0);
+
+        let uniforms = uniform! {
+            matrix: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [t, 0.0, 0.0, 1.0f32],
+            ],
+        };
+
+        target.draw(&vertex_buffer, &indices, &program, &uniforms, &Default::default()).unwrap();
+        target.finish().unwrap();
+
     });
 
 }
