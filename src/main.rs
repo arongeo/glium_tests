@@ -30,17 +30,17 @@ fn main() {
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
 
-    let image = image::load(Cursor::new(&include_bytes!("/home/arongeo/Downloads/obama.jpg")), image::ImageFormat::Jpeg).unwrap().to_rgba8();
+    let image = image::load(Cursor::new(&include_bytes!("../res/obama.jpg")), image::ImageFormat::Jpeg).unwrap().to_rgba8();
     let image_dimensions = image.dimensions();
     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
     let texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
 
-    implement_vertex!(Vertex, position);
+    implement_vertex!(Vertex, position, tex_coordinates);
 
 
-    let vertex1 = Vertex::new(-0.5, -0.5, 0.0, 0.0);
-    let vertex2 = Vertex::new(0.0, 0.5, 0.0, 1.0);
-    let vertex3 = Vertex::new(0.5, -0.25, 1.0, 0.0);
+    let vertex1 = Vertex::new(-0.5, -0.5, 0.0, 0.55);
+    let vertex2 = Vertex::new(0.0, 0.5, 0.2, 1.0);
+    let vertex3 = Vertex::new(0.5, -0.25, 1.0, 0.55);
 
     let shape = vec![vertex1, vertex2, vertex3];
 
@@ -51,12 +51,13 @@ fn main() {
         #version 140
 
         in vec2 position;
-        out vec2 my_attr;
+        in vec2 tex_coordinates;
+        out vec2 v_tex_coords;
 
         uniform mat4 matrix;
 
         void main() {
-            my_attr = position;
+            v_tex_coords = tex_coordinates;
             gl_Position = matrix * vec4(position, 0.0, 1.0);
         }
     "#;
@@ -64,11 +65,13 @@ fn main() {
     let fragment_shader_src = r#"
         #version 140
 
-        in vec2 my_attr;
+        in vec2 v_tex_coords;
         out vec4 color;
 
+        uniform sampler2D tex;
+
         void main() {
-            color = vec4(my_attr, 0.0, 1.0);
+            color = texture(tex, v_tex_coords);
         }
     "#;
 
@@ -93,20 +96,18 @@ fn main() {
         }
 
         t += 0.002;
-        if t > 0.5 {
-            t = -0.5;
-        }
 
         let mut target = display.draw();
         target.clear_color(0.5, 0.8, 1.0, 1.0);
 
         let uniforms = uniform! {
             matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
+                [t.cos(), t.sin(), 0.0, 0.0],
+                [-t.sin(), t.cos(), 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [t, 0.0, 0.0, 1.0f32],
+                [0.0, 0.0, 0.0, 1.0f32],
             ],
+            tex: &texture,
         };
 
         target.draw(&vertex_buffer, &indices, &program, &uniforms, &Default::default()).unwrap();
