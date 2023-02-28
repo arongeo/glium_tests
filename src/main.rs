@@ -1,7 +1,10 @@
 
+#[macro_use]
 extern crate glium;
 extern crate image;
+extern crate cgmath;
 
+use cgmath::{Vector2, Matrix4};
 use glium::glutin;
 use glium::Surface;
 use glium::implement_vertex;
@@ -16,68 +19,93 @@ struct Vertex {
 }
 
 impl Vertex {
-    pub fn new(x_pos: f32, y_pos: f32, x_tex_coord: f32, y_tex_coord: f32) -> Self {
+    pub fn new(x_pos: f32, y_pos: f32, tex_pos_x: f32, tex_pos_y: f32) -> Self {
         Vertex {
             position: [x_pos, y_pos],
-            tex_coordinates: [x_tex_coord, y_tex_coord],
+            tex_coordinates: [tex_pos_x, tex_pos_y],
         }
     }
 }
 
+
+const vertex_shader_src: &str = r#"
+    #version 140
+
+    in vec2 position;
+    in vec2 tex_coordinates;
+    out vec2 v_tex_coords;
+
+    uniform mat4 matrix;
+
+    void main() {
+        if (gl_VertexID % 4 == 0) {
+            v_tex_coords = vec2(0.0, 1.0);
+        } else if (gl_VertexID % 4 == 1) {
+            v_tex_coords = vec2(1.0, 1.0);
+        } else if (gl_VertexID % 4 == 2) {
+            v_tex_coords = vec2(0.0, 0.0);
+        } else {
+            v_tex_coords = vec2(1.0, 0.0);
+        }
+        gl_Position = matrix * vec4(position, 0.0, 1.0);
+    }
+"#;
+
+const fragment_shader_src: &str = r#"
+    #version 140
+
+    in vec2 v_tex_coords;
+    out vec4 color;
+
+    uniform sampler2D tex;
+
+    void main() {
+        color = texture(tex, v_tex_coords);
+    }
+"#;
+
+const WINDOW_WIDTH:  f32 = 1280.0;
+const WINDOW_HEIGHT: f32 = 720.0;
+
 fn main() {
     let mut event_loop = glutin::event_loop::EventLoop::new();
-    let window_builder = glutin::window::WindowBuilder::new();
+    let window_builder = glutin::window::WindowBuilder::new().with_inner_size(glutin::dpi::Size::Logical(glutin::dpi::LogicalSize { width: WINDOW_WIDTH as f64, height: WINDOW_HEIGHT as f64 })).with_title("asd");
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
-
-    let image = image::load(Cursor::new(&include_bytes!("../res/obama.jpg")), image::ImageFormat::Jpeg).unwrap().to_rgba8();
-    let image_dimensions = image.dimensions();
-    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.into_raw(), image_dimensions);
-    let texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
-
+    
     implement_vertex!(Vertex, position, tex_coordinates);
-
-
-    let vertex1 = Vertex::new(-0.5, -0.5, 0.0, 0.55);
-    let vertex2 = Vertex::new(0.0, 0.5, 0.2, 1.0);
-    let vertex3 = Vertex::new(0.5, -0.25, 1.0, 0.55);
-
-    let shape = vec![vertex1, vertex2, vertex3];
-
-    let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
-    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
-
-    let vertex_shader_src = r#"
-        #version 140
-
-        in vec2 position;
-        in vec2 tex_coordinates;
-        out vec2 v_tex_coords;
-
-        uniform mat4 matrix;
-
-        void main() {
-            v_tex_coords = tex_coordinates;
-            gl_Position = matrix * vec4(position, 0.0, 1.0);
-        }
-    "#;
-
-    let fragment_shader_src = r#"
-        #version 140
-
-        in vec2 v_tex_coords;
-        out vec4 color;
-
-        uniform sampler2D tex;
-
-        void main() {
-            color = texture(tex, v_tex_coords);
-        }
-    "#;
 
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
 
-    let mut t: f32 = -0.5;
+
+    let image_data = image::load(Cursor::new(&include_bytes!("../res/obama.jpg")), image::ImageFormat::Jpeg).unwrap().to_rgba8();
+    let image_dimensions = image_data.dimensions();
+    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image_data.into_raw(), image_dimensions);
+    let texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
+    
+    let rectangle_position = Vector2 {
+        x: (WINDOW_WIDTH)  / 2.0,
+        y: (WINDOW_HEIGHT) / 2.0,
+    };
+
+    let mut rectangle_size = Vector2 {
+        x: 300.0,
+        y: 300.0,
+    };
+
+    let vbuf = glium::VertexBuffer::empty_dynamic(&display, 4).unwrap();
+
+    let indices_data: Vec<u16> = vec![0, 1, 2, 1, 2, 3];
+    let ibuf = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList, &indices_data).unwrap();
+
+    let matrix = Into::<[[f32; 4]; 4]>::into(cgmath::ortho(
+        0.0,
+        WINDOW_WIDTH,
+        0.0,
+        WINDOW_HEIGHT,
+        -1.0,
+        1.0
+    ));
 
     event_loop.run(move |event, _, control_flow| {
 
@@ -95,22 +123,28 @@ fn main() {
             _ => (),
         }
 
-        t += 0.002;
+        // Time to calculateee
+        let left = rectangle_position.x - rectangle_size.x / 2.0;
+        let right = rectangle_position.x + rectangle_size.x / 2.0;
+        let bottom = rectangle_position.y - rectangle_size.y / 2.0;
+        let top = rectangle_position.y + rectangle_size.y / 2.0;
+        vbuf.write(&vec![
+            Vertex::new(left, top, 0.0, 0.0),
+            Vertex::new(right, top, 0.0, 0.0),
+            Vertex::new(left, bottom, 0.0, 0.0),
+            Vertex::new(right, bottom, 0.0, 0.0),
+        ]);
+
 
         let mut target = display.draw();
         target.clear_color(0.5, 0.8, 1.0, 1.0);
 
         let uniforms = uniform! {
-            matrix: [
-                [t.cos(), t.sin(), 0.0, 0.0],
-                [-t.sin(), t.cos(), 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32],
-            ],
+            matrix: matrix,
             tex: &texture,
         };
 
-        target.draw(&vertex_buffer, &indices, &program, &uniforms, &Default::default()).unwrap();
+        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
         target.finish().unwrap();
 
     });
