@@ -83,10 +83,6 @@ fn main() {
     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image_data.into_raw(), image_dimensions);
     let texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
     
-    let rectangle_position = Vector2 {
-        x: (WINDOW_WIDTH)  / 2.0,
-        y: (WINDOW_HEIGHT) / 2.0,
-    };
 
     let mut rectangle_size = Vector2 {
         x: 300.0,
@@ -108,6 +104,10 @@ fn main() {
     ));
 
     event_loop.run(move |event, _, control_flow| {
+        let mut rectangle_position = Vector2 {
+            x: (WINDOW_WIDTH)  / 2.0,
+            y: (WINDOW_HEIGHT) / 2.0,
+        };
 
         let next_frame_time = std::time::Instant::now() + 
             std::time::Duration::from_nanos(16_666_667);
@@ -123,30 +123,32 @@ fn main() {
             _ => (),
         }
 
-        // Time to calculateee
-        let left = rectangle_position.x - rectangle_size.x / 2.0;
-        let right = rectangle_position.x + rectangle_size.x / 2.0;
-        let bottom = rectangle_position.y - rectangle_size.y / 2.0;
-        let top = rectangle_position.y + rectangle_size.y / 2.0;
-        vbuf.write(&vec![
-            Vertex::new(left, top, 0.0, 0.0),
-            Vertex::new(right, top, 0.0, 0.0),
-            Vertex::new(left, bottom, 0.0, 0.0),
-            Vertex::new(right, bottom, 0.0, 0.0),
-        ]);
-
-
         let mut target = display.draw();
         target.clear_color(0.5, 0.8, 1.0, 1.0);
+        
+        while rectangle_position.x < WINDOW_WIDTH {
+            // Time to calculateee
+            let left = rectangle_position.x - rectangle_size.x / 2.0;
+            let right = rectangle_position.x + rectangle_size.x / 2.0;
+            let bottom = rectangle_position.y - rectangle_size.y / 2.0;
+            let top = rectangle_position.y + rectangle_size.y / 2.0;
+            vbuf.write(&vec![
+                Vertex::new(left, top, 0.0, 0.0),
+                Vertex::new(right, top, 0.0, 0.0),
+                Vertex::new(left, bottom, 0.0, 0.0),
+                Vertex::new(right, bottom, 0.0, 0.0),
+            ]);
 
-        let uniforms = uniform! {
-            matrix: matrix,
-            tex: &texture,
-        };
 
-        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+            let uniforms = uniform! {
+                matrix: matrix,
+                tex: &texture,
+            };
+
+            target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+            rectangle_position.x += 310.0;
+        }
         target.finish().unwrap();
-
     });
 
 }
