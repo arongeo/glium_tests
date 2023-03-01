@@ -57,7 +57,8 @@ const vertex_shader_src: &str = r#"
     in vec2 tex_coordinates;
     out vec2 v_tex_coords;
 
-    uniform mat4 matrix;
+    uniform mat4 model_matrix;
+    uniform mat4 ortho_matrix;
 
     void main() {
         if (gl_VertexID % 4 == 0) {
@@ -69,7 +70,7 @@ const vertex_shader_src: &str = r#"
         } else {
             v_tex_coords = vec2(1.0, 0.0);
         }
-        gl_Position = matrix * vec4(position, 0.0, 1.0);
+        gl_Position = ortho_matrix * model_matrix * vec4(position, 0.0, 1.0);
     }
 "#;
 
@@ -118,7 +119,7 @@ fn main() {
     let mut indices_data: Vec<u16> = vec![0, 1, 2, 1, 3, 2];
     let ibuf = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList, &indices_data).unwrap();
 
-    let matrix = Into::<[[f32; 4]; 4]>::into(cgmath::ortho(
+    let ortho_matrix = Into::<[[f32; 4]; 4]>::into(cgmath::ortho(
         0.0,
         WINDOW_WIDTH,
         0.0,
@@ -126,6 +127,13 @@ fn main() {
         -1.0,
         1.0
     ));
+
+    let pos_matrix: [[f32; 4]; 4] = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
 
     
     let mut timer = std::time::Instant::now();
@@ -149,6 +157,11 @@ fn main() {
         let mut target = display.draw();
         target.clear_color(0.5, 0.8, 1.0, 1.0);
         
+        let rectangle_position = Vector2 {
+            x: WINDOW_WIDTH / 2.0,
+            y: WINDOW_HEIGHT / 2.0,
+        };
+
         let mut tileposition = TilePos {
             left: 0.0,
             right: rectangle_size.x,
@@ -156,57 +169,43 @@ fn main() {
             bottom: WINDOW_HEIGHT - rectangle_size.y,
         };
 
-        /*while rectangle_position.x < WINDOW_WIDTH {
-            // Time to calculateee
-            let left = rectangle_position.x - rectangle_size.x / 2.0;
-            let right = rectangle_position.x + rectangle_size.x / 2.0;
-            let bottom = rectangle_position.y - rectangle_size.y / 2.0;
-            let top = rectangle_position.y + rectangle_size.y / 2.0;
-            vbuf.write(&vec![
-                Vertex::new(left, top, 0.0, 0.0),
-                Vertex::new(right, top, 0.0, 0.0),
-                Vertex::new(left, bottom, 0.0, 0.0),
-                Vertex::new(right, bottom, 0.0, 0.0),
-            ]);
+        // Time to calculateee
+        let left = 0.0;
+        let right = 40.0;
+        let bottom = 680.0;
+        let top = 720.0;
+        vbuf.write(&vec![
+            Vertex::new(left, top, 0.0, 0.0),
+            Vertex::new(right, top, 0.0, 0.0),
+            Vertex::new(left, bottom, 0.0, 0.0),
+            Vertex::new(right, bottom, 0.0, 0.0),
+        ]);
+
+        //let model_buffer = glium::uniforms::UniformBuffer::new(&display, )
+
+        let uniforms = uniform! {
+            ortho_matrix: ortho_matrix,
+            model_matrix: pos_matrix,
+            tex: &texture,
+        };
+
+        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
 
 
-            let uniforms = uniform! {
-                matrix: matrix,
-                tex: &texture,
-            };
+        let pos_matrix: [[f32; 4]; 4] = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [39.0, 0.0, 0.0, 1.0],
+        ];
 
-            target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
-            rectangle_position.x += 310.0;
-        }
-        rectangle_position.x -= 450.0;
-        let left = rectangle_position.x - rectangle_size.x / 2.0;
-        let right = rectangle_position.x + rectangle_size.x / 2.0;
-        let bottom = rectangle_position.y - rectangle_size.y / 2.0;
-        let top = rectangle_position.y + rectangle_size.y / 2.0;*/
-        while (tileposition.left < WINDOW_WIDTH) {
+        let uniforms = uniform! {
+            ortho_matrix: ortho_matrix,
+            model_matrix: pos_matrix,
+            tex: &texture,
+        };
 
-            while (tileposition.top > 0.0) {
-                vbuf.write(&vec![
-                    Vertex::new(tileposition.left, tileposition.top, 0.0, 0.0),
-                    Vertex::new(tileposition.right, tileposition.top, 0.0, 0.0),
-                    Vertex::new(tileposition.left, tileposition.bottom, 0.0, 0.0),
-                    Vertex::new(tileposition.right, tileposition.bottom, 0.0, 0.0),
-                ]);
-                tileposition.top = tileposition.bottom;
-                tileposition.bottom = tileposition.top - rectangle_size.y;
-                let uniforms = uniform! {
-                    matrix: matrix,
-                    tex: &texture,
-                };
-
-                target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
-            }
-            tileposition.left  += rectangle_size.x;
-            tileposition.right += rectangle_size.x;
-            tileposition.top    = WINDOW_HEIGHT;
-            tileposition.bottom = WINDOW_HEIGHT - rectangle_size.y;
-        }
- 
+        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
 
         target.finish().unwrap();
         println!("Frame drawn!");
