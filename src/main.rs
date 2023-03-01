@@ -136,12 +136,20 @@ fn main() {
     ];
 
     
+    vbuf.write(&vec![
+        Vertex::new(0.0, 0.0, 0.0, 0.0),
+        Vertex::new(40.0, 0.0, 0.0, 0.0),
+        Vertex::new(0.0, 40.0, 0.0, 0.0),
+        Vertex::new(40.0, 40.0, 0.0, 0.0),
+    ]);
+
     let mut timer = std::time::Instant::now();
     let mut frames = 0;
+    let mut frame_changed = true;
     event_loop.run(move |event, _, control_flow| {
 
         let next_frame_time = std::time::Instant::now() + 
-            std::time::Duration::from_nanos(16_666_667);
+            std::time::Duration::from_nanos(20_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -154,33 +162,18 @@ fn main() {
             _ => (),
         }
 
+        if (timer.elapsed().as_secs() >= 1) {
+            println!("Frames drawn in 1 sec: {}", frames+1);
+        } else {
+            frames += 1;
+        }
+
+        // FIX THIS, CAP FRAMERATE INSTEAD
+        if frame_changed == false {
+            return;
+        }
+
         let mut target = display.draw();
-        target.clear_color(0.5, 0.8, 1.0, 1.0);
-        
-        let rectangle_position = Vector2 {
-            x: WINDOW_WIDTH / 2.0,
-            y: WINDOW_HEIGHT / 2.0,
-        };
-
-        let mut tileposition = TilePos {
-            left: 0.0,
-            right: rectangle_size.x,
-            top: WINDOW_HEIGHT,
-            bottom: WINDOW_HEIGHT - rectangle_size.y,
-        };
-
-        // Time to calculateee
-        let left = 0.0;
-        let right = 40.0;
-        let bottom = 40.0;
-        let top = 0.0;
-        vbuf.write(&vec![
-            Vertex::new(left, top, 0.0, 0.0),
-            Vertex::new(right, top, 0.0, 0.0),
-            Vertex::new(left, bottom, 0.0, 0.0),
-            Vertex::new(right, bottom, 0.0, 0.0),
-        ]);
-
 
         for i in 0..((WINDOW_WIDTH / 40.0).ceil() as usize) {   
             for j in 0..((WINDOW_HEIGHT / 40.0).ceil() as usize) {       
@@ -201,15 +194,9 @@ fn main() {
             }
         }
 
-
-
         target.finish().unwrap();
         println!("Frame drawn!");
-        if (timer.elapsed().as_secs() >= 1) {
-            println!("Frames drawn in 1 sec: {}", frames+1);
-        } else {
-            frames += 1;
-        }
+        frame_changed = false;
     });
 
 }
