@@ -28,6 +28,13 @@ impl Vertex {
 }
 
 
+struct TilePos {
+    left: f32,
+    right: f32,
+    top: f32,
+    bottom: f32,
+}
+
 const vertex_shader_src: &str = r#"
     #version 140
 
@@ -67,6 +74,7 @@ const fragment_shader_src: &str = r#"
 const WINDOW_WIDTH:  f32 = 1280.0;
 const WINDOW_HEIGHT: f32 = 720.0;
 
+
 fn main() {
     let mut event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new().with_inner_size(glutin::dpi::Size::Logical(glutin::dpi::LogicalSize { width: WINDOW_WIDTH as f64, height: WINDOW_HEIGHT as f64 })).with_title("asd");
@@ -83,15 +91,16 @@ fn main() {
     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image_data.into_raw(), image_dimensions);
     let texture = glium::texture::SrgbTexture2d::new(&display, image).unwrap();
     
+    let TILE_NUM: usize = ((WINDOW_HEIGHT / 40.0).ceil() * (WINDOW_WIDTH / 40.0).ceil()) as usize;
 
     let mut rectangle_size = Vector2 {
-        x: 300.0,
-        y: 300.0,
+        x: 40.0,
+        y: 40.0,
     };
 
     let vbuf = glium::VertexBuffer::empty_dynamic(&display, 4).unwrap();
 
-    let indices_data: Vec<u16> = vec![0, 1, 2, 1, 2, 3];
+    let mut indices_data: Vec<u16> = vec![0, 1, 2, 1, 3, 2];
     let ibuf = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList, &indices_data).unwrap();
 
     let matrix = Into::<[[f32; 4]; 4]>::into(cgmath::ortho(
@@ -103,14 +112,13 @@ fn main() {
         1.0
     ));
 
+    
+    let mut timer = std::time::Instant::now();
+    let mut frames = 0;
     event_loop.run(move |event, _, control_flow| {
-        let mut rectangle_position = Vector2 {
-            x: (WINDOW_WIDTH)  / 2.0,
-            y: (WINDOW_HEIGHT) / 2.0,
-        };
 
         let next_frame_time = std::time::Instant::now() + 
-            std::time::Duration::from_nanos(16_666_667);
+            std::time::Duration::from_nanos(400_000_000);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -126,7 +134,14 @@ fn main() {
         let mut target = display.draw();
         target.clear_color(0.5, 0.8, 1.0, 1.0);
         
-        while rectangle_position.x < WINDOW_WIDTH {
+        let mut tileposition = TilePos {
+            left: 0.0,
+            right: rectangle_size.x,
+            top: WINDOW_HEIGHT,
+            bottom: WINDOW_HEIGHT - rectangle_size.y,
+        };
+
+        /*while rectangle_position.x < WINDOW_WIDTH {
             // Time to calculateee
             let left = rectangle_position.x - rectangle_size.x / 2.0;
             let right = rectangle_position.x + rectangle_size.x / 2.0;
@@ -148,7 +163,43 @@ fn main() {
             target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
             rectangle_position.x += 310.0;
         }
+        rectangle_position.x -= 450.0;
+        let left = rectangle_position.x - rectangle_size.x / 2.0;
+        let right = rectangle_position.x + rectangle_size.x / 2.0;
+        let bottom = rectangle_position.y - rectangle_size.y / 2.0;
+        let top = rectangle_position.y + rectangle_size.y / 2.0;*/
+        while (tileposition.left < WINDOW_WIDTH) {
+
+            while (tileposition.top > 0.0) {
+                vbuf.write(&vec![
+                    Vertex::new(tileposition.left, tileposition.top, 0.0, 0.0),
+                    Vertex::new(tileposition.right, tileposition.top, 0.0, 0.0),
+                    Vertex::new(tileposition.left, tileposition.bottom, 0.0, 0.0),
+                    Vertex::new(tileposition.right, tileposition.bottom, 0.0, 0.0),
+                ]);
+                tileposition.top = tileposition.bottom;
+                tileposition.bottom = tileposition.top - rectangle_size.y;
+                let uniforms = uniform! {
+                    matrix: matrix,
+                    tex: &texture,
+                };
+
+                target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+            }
+            tileposition.left  += rectangle_size.x;
+            tileposition.right += rectangle_size.x;
+            tileposition.top    = WINDOW_HEIGHT;
+            tileposition.bottom = WINDOW_HEIGHT - rectangle_size.y;
+        }
+ 
+
         target.finish().unwrap();
+        println!("Frame drawn!");
+        if (timer.elapsed().as_secs() >= 1) {
+            println!("Frames drawn in 1 sec: {}", frames+1);
+        } else {
+            frames += 1;
+        }
     });
 
 }
