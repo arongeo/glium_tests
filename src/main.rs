@@ -122,13 +122,13 @@ fn main() {
     let ortho_matrix = Into::<[[f32; 4]; 4]>::into(cgmath::ortho(
         0.0,
         WINDOW_WIDTH,
-        0.0,
         WINDOW_HEIGHT,
+        0.0,
         -1.0,
         1.0
     ));
 
-    let pos_matrix: [[f32; 4]; 4] = [
+    let mut pos_matrix: [[f32; 4]; 4] = [
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
@@ -141,7 +141,7 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
 
         let next_frame_time = std::time::Instant::now() + 
-            std::time::Duration::from_nanos(400_000_000);
+            std::time::Duration::from_nanos(16_666_667);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -172,8 +172,8 @@ fn main() {
         // Time to calculateee
         let left = 0.0;
         let right = 40.0;
-        let bottom = 680.0;
-        let top = 720.0;
+        let bottom = 40.0;
+        let top = 0.0;
         vbuf.write(&vec![
             Vertex::new(left, top, 0.0, 0.0),
             Vertex::new(right, top, 0.0, 0.0),
@@ -181,31 +181,27 @@ fn main() {
             Vertex::new(right, bottom, 0.0, 0.0),
         ]);
 
-        //let model_buffer = glium::uniforms::UniformBuffer::new(&display, )
 
-        let uniforms = uniform! {
-            ortho_matrix: ortho_matrix,
-            model_matrix: pos_matrix,
-            tex: &texture,
-        };
+        for i in 0..((WINDOW_WIDTH / 40.0).ceil() as usize) {   
+            for j in 0..((WINDOW_HEIGHT / 40.0).ceil() as usize) {       
+                let pos_matrix = [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [(i as f32) * 40.0, (j as f32) * 40.0, 0.0, 1.0],
+                ];
 
-        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+                let uniforms = uniform! {
+                    ortho_matrix: ortho_matrix,
+                    model_matrix: pos_matrix,
+                    tex: &texture,
+                };
+
+                target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+            }
+        }
 
 
-        let pos_matrix: [[f32; 4]; 4] = [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [39.0, 0.0, 0.0, 1.0],
-        ];
-
-        let uniforms = uniform! {
-            ortho_matrix: ortho_matrix,
-            model_matrix: pos_matrix,
-            tex: &texture,
-        };
-
-        target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
 
         target.finish().unwrap();
         println!("Frame drawn!");
