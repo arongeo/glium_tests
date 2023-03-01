@@ -35,6 +35,21 @@ struct TilePos {
     bottom: f32,
 }
 
+fn mul_matrices(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    let mut matrix: [[f32; 4]; 4] = [
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0f32],
+    ];
+    for i in 0..4 {
+        for j in 0..4 {
+            matrix[i][j] = a[i][j] * b[j][i];
+        }
+    }
+    return matrix;
+}
+
 const vertex_shader_src: &str = r#"
     #version 140
 
