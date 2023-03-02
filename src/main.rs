@@ -1,4 +1,4 @@
-
+!#[warn(unused_imports)]
 #[macro_use]
 extern crate glium;
 extern crate image;
@@ -143,13 +143,15 @@ fn main() {
         Vertex::new(40.0, 40.0, 0.0, 0.0),
     ]);
 
-    let mut timer = std::time::Instant::now();
     let mut frames = 0;
-    let mut frame_changed = true;
+    let frames_per_second = 240.0;
+    let mut fps_checker_now = std::time::Instant::now();
+    let mut now = std::time::Instant::now();
+    let mut event_scout = 0;
     event_loop.run(move |event, _, control_flow| {
-
+        event_scout += 1;
         let next_frame_time = std::time::Instant::now() + 
-            std::time::Duration::from_nanos(20_666_667);
+            std::time::Duration::from_nanos(10);
         *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
         match event {
             glutin::event::Event::WindowEvent { event, .. } => match event {
@@ -161,42 +163,39 @@ fn main() {
             }, 
             _ => (),
         }
+        if (now.elapsed().as_secs_f64() >= 1.0/240.0) {
+            let mut target = display.draw();
 
-        if (timer.elapsed().as_secs() >= 1) {
-            println!("Frames drawn in 1 sec: {}", frames+1);
-        } else {
-            frames += 1;
-        }
+            for i in 0..((WINDOW_WIDTH / 40.0).ceil() as usize) {   
+                for j in 0..((WINDOW_HEIGHT / 40.0).ceil() as usize) {       
+                    let pos_matrix = [
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [(i as f32) * 40.0, (j as f32) * 40.0, 0.0, 1.0],
+                    ];
 
-        // FIX THIS, CAP FRAMERATE INSTEAD
-        if frame_changed == false {
-            return;
-        }
+                    let uniforms = uniform! {
+                        ortho_matrix: ortho_matrix,
+                        model_matrix: pos_matrix,
+                        tex: &texture,
+                    };
 
-        let mut target = display.draw();
-
-        for i in 0..((WINDOW_WIDTH / 40.0).ceil() as usize) {   
-            for j in 0..((WINDOW_HEIGHT / 40.0).ceil() as usize) {       
-                let pos_matrix = [
-                    [1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [(i as f32) * 40.0, (j as f32) * 40.0, 0.0, 1.0],
-                ];
-
-                let uniforms = uniform! {
-                    ortho_matrix: ortho_matrix,
-                    model_matrix: pos_matrix,
-                    tex: &texture,
-                };
-
-                target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+                    target.draw(&vbuf, &ibuf, &program, &uniforms, &Default::default()).unwrap();
+                }
             }
+            
+            target.finish().unwrap();
+            frames += 1;
+            now = std::time::Instant::now();
         }
-
-        target.finish().unwrap();
-        println!("Frame drawn!");
-        frame_changed = false;
+        if (fps_checker_now.elapsed().as_secs() > 1) {
+            println!("{}", frames);
+            println!("{}", event_scout);
+            frames = 0;
+            event_scout = 0;
+            fps_checker_now = std::time::Instant::now();
+        }
     });
 
 }
